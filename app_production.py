@@ -3,7 +3,6 @@ import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import time
-import math
 import io
 import datetime
 import folium
@@ -11,7 +10,7 @@ import requests
 from streamlit_folium import st_folium
 from sklearn.neighbors import BallTree
 from streamlit_geolocation import streamlit_geolocation
- 
+
 def _dedent(html: str) -> str:
     """Collapse to a single line. Streamlit's markdown parser processes
     multi-line strings line-by-line even inside raw HTML blocks, so an
@@ -20,8 +19,8 @@ def _dedent(html: str) -> str:
     one line sidesteps all of that (CSS/HTML are whitespace-insensitive
     here, so this is visually and functionally identical)."""
     return " ".join(line.strip() for line in html.split("\n") if line.strip() != "")
- 
- 
+
+
 # ─────────────────────────────────────────────────────────────
 # BACKEND — UNCHANGED (Ball Tree / k-NN / dataset / distance logic)
 # ─────────────────────────────────────────────────────────────
@@ -35,16 +34,16 @@ def get_current_location():
     except Exception:
         pass
     return 9.9312, 76.2673
- 
+
 st.set_page_config(
     page_title="ResQ | Emergency Services Intelligence Platform",
     page_icon="R",
     layout="wide",
     initial_sidebar_state="expanded",
 )
- 
+
 FA_CDN = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
- 
+
 # ─────────────────────────────────────────────────────────────
 # ENTERPRISE DESIGN SYSTEM
 # ─────────────────────────────────────────────────────────────
@@ -53,7 +52,7 @@ def inject_global_css():
     <link rel="stylesheet" href="{FA_CDN}">
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
- 
+
     :root {{
         --navy-950: #0b1220;
         --navy-900: #0f172a;
@@ -78,16 +77,16 @@ def inject_global_css():
         --card-shadow-hover: 0 10px 28px rgba(37,99,235,.12), 0 2px 6px rgba(15,23,42,.06);
         --accent-grad: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
     }}
- 
+
     * {{ font-family: 'Inter', -apple-system, sans-serif; }}
- 
+
     [data-testid="stAppViewContainer"] {{ background: var(--gray-50) !important; }}
     section.main > div {{ padding-top: 1rem; }}
     .block-container {{ padding-top: 1.2rem; max-width: 1360px; }}
- 
+
     @keyframes fadeIn {{ from {{ opacity:0; transform: translateY(6px); }} to {{ opacity:1; transform: translateY(0); }} }}
     .fade-in {{ animation: fadeIn .45s ease-out both; }}
- 
+
     /* ---------- SIDEBAR ---------- */
     [data-testid="stSidebar"] {{
         background: var(--navy-950) !important;
@@ -95,7 +94,7 @@ def inject_global_css():
     }}
     [data-testid="stSidebar"] * {{ color: var(--gray-300) !important; }}
     [data-testid="stSidebar"] label {{ font-size: .82rem; }}
- 
+
     .brand {{
         display:flex; align-items:center; gap:12px;
         padding: 4px 0 18px 0; border-bottom: 1px solid rgba(255,255,255,.08);
@@ -110,12 +109,12 @@ def inject_global_css():
     }}
     .brand-name {{ font-size: 1.05rem; font-weight: 700; color:#fff !important; line-height:1.1; }}
     .brand-sub {{ font-size: .65rem; color: var(--gray-500) !important; letter-spacing:.06em; text-transform:uppercase; }}
- 
+
     .sidebar-section-label {{
         font-size: .66rem; font-weight: 600; letter-spacing:.1em; text-transform:uppercase;
         color: var(--gray-500) !important; margin: 14px 0 6px 2px;
     }}
- 
+
     [data-testid="stSidebar"] .stRadio > div:first-child {{ display: none !important; }}
     [data-testid="stSidebar"] .stRadio [data-testid="stWidgetLabel"] {{ display: none !important; }}
     [data-testid="stSidebar"] .stRadio div[role="radiogroup"] {{ gap: 2px !important; display:flex; flex-direction:column; }}
@@ -132,7 +131,7 @@ def inject_global_css():
         border-left-color: var(--blue-500);
     }}
     [data-testid="stSidebar"] .stRadio input[type="radio"] {{ display: none !important; }}
- 
+
     .status-panel {{
         background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
         border-radius: 14px; padding: 12px 14px; margin-top: 10px;
@@ -142,12 +141,12 @@ def inject_global_css():
     .status-dot.ok {{ background: var(--emerald-600); box-shadow: 0 0 0 3px rgba(5,150,105,.18); }}
     .status-dot.info {{ background: var(--blue-500); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }}
     .status-dot.warn {{ background: var(--amber-600); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }}
- 
+
     .sidebar-footer {{
         font-size: .62rem; color: var(--gray-500) !important; margin-top: 18px;
         border-top: 1px solid rgba(255,255,255,.07); padding-top: 10px; line-height:1.6;
     }}
- 
+
     /* ---------- HEADER ---------- */
     .app-header {{
         display:flex; align-items:center; justify-content:space-between;
@@ -178,7 +177,7 @@ def inject_global_css():
     }}
     .header-badge .dot {{ width:6px; height:6px; border-radius:50%; background: var(--emerald-600); animation: blink 2s infinite; }}
     @keyframes blink {{ 0%,100% {{ opacity:1; }} 50% {{ opacity:.25; }} }}
- 
+
     /* ---------- CARDS ---------- */
     .kpi-card, .info-card, .meta-card, .result-card, .step-card {{
         background: #fff; border: 1px solid var(--gray-200); border-radius: 18px;
@@ -187,7 +186,7 @@ def inject_global_css():
     .kpi-card:hover, .meta-card:hover, .result-card:hover, .step-card:hover {{
         box-shadow: var(--card-shadow-hover); transform: translateY(-3px) scale(1.012); border-color: var(--blue-500);
     }}
- 
+
     [data-testid="stMetric"] {{
         background:#fff; border:1px solid var(--gray-200); border-radius:16px;
         padding: 14px 18px; box-shadow: var(--card-shadow);
@@ -196,7 +195,7 @@ def inject_global_css():
     [data-testid="stMetric"]:hover {{ box-shadow: var(--card-shadow-hover); transform: translateY(-3px) scale(1.02); }}
     [data-testid="stMetricValue"] {{ font-size: 1.5rem; font-weight: 700; color: var(--navy-900); }}
     [data-testid="stMetricLabel"] {{ font-size: .72rem; color: var(--gray-500); text-transform:uppercase; letter-spacing:.05em; }}
- 
+
     .kpi-card {{ padding: 16px 18px; }}
     .kpi-icon {{
         width: 34px; height: 34px; border-radius: 8px; display:flex; align-items:center; justify-content:center;
@@ -204,25 +203,25 @@ def inject_global_css():
     }}
     .kpi-label {{ font-size: .68rem; color: var(--gray-500); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }}
     .kpi-value {{ font-size: 1.55rem; font-weight: 700; color: var(--navy-900); margin-top:2px; }}
- 
+
     .meta-card {{ padding: 16px 20px; margin-bottom: 12px; }}
     .meta-card .meta-title {{ font-size:.68rem; color:var(--gray-500); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }}
     .meta-card .meta-val {{ font-size:1.45rem; font-weight:700; color: var(--navy-900); margin-top:3px; }}
     .meta-card .meta-sub {{ font-size:.72rem; color:var(--gray-500); margin-top:3px; }}
- 
+
     .result-card {{ padding: 14px 18px; margin-bottom: 10px; position:relative; overflow:hidden; }}
     .result-card::before {{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:4px; background: var(--accent-grad); }}
     .result-card .rank {{ font-size:.68rem; color:var(--gray-500); text-transform:uppercase; letter-spacing:.08em; font-weight:600; }}
     .result-card .name {{ font-size:1rem; font-weight:700; color:var(--navy-900); margin:4px 0; }}
     .result-card .dist {{ font-size:.82rem; color: var(--blue-600); font-weight:600; }}
     .result-card .coords {{ font-size:.72rem; color:var(--gray-500); margin-top:2px; }}
- 
+
     .step-card {{ padding: 16px 18px; }}
     .step-num {{
         width:28px; height:28px; border-radius:10px; background: var(--accent-grad); color:#fff;
         display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700; margin-bottom: 10px;
     }}
- 
+
     .page-title {{
         display:flex; align-items:center; gap:10px;
         font-size: 1.25rem; font-weight: 700; color: var(--navy-900); margin: 6px 0 16px 0;
@@ -234,9 +233,9 @@ def inject_global_css():
     }}
     h2, h3, h4 {{ color: var(--navy-900) !important; }}
     hr {{ border-color: var(--gray-200) !important; }}
- 
+
     [data-testid="stDataFrame"] {{ border: 1px solid var(--gray-200); border-radius: 14px; overflow:hidden; }}
- 
+
     [data-testid="stButton"] > button {{
         background: var(--accent-grad);
         color:#fff; border:none; border-radius: 999px; font-weight:600;
@@ -250,9 +249,9 @@ def inject_global_css():
         border-radius:999px; font-weight:600; transition: all .2s cubic-bezier(.34,1.56,.64,1);
     }}
     [data-testid="stDownloadButton"] > button:hover {{ border-color: var(--blue-500); color: var(--blue-700); transform: translateY(-2px) scale(1.02); }}
- 
+
     [data-testid="stAlert"] {{ border-radius: 14px; }}
- 
+
     /* ---------- INPUT WIDGETS (force light, readable surfaces) ---------- */
     [data-testid="stSelectbox"] [data-baseweb="select"] > div,
     [data-testid="stNumberInput"] input,
@@ -274,12 +273,12 @@ def inject_global_css():
     ul[data-testid="stSelectboxVirtualDropdown"] {{ background-color: #fff !important; }}
     ul[data-testid="stSelectboxVirtualDropdown"] li {{ color: var(--navy-900) !important; }}
     ul[data-testid="stSelectboxVirtualDropdown"] li:hover {{ background-color: var(--gray-100) !important; }}
- 
+
     [data-testid="stCheckbox"] label p, [data-testid="stCheckbox"] label span {{ color: var(--navy-900) !important; }}
     [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label {{ color: var(--gray-600) !important; font-weight: 600; }}
- 
+
     [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p {{ color: var(--gray-600) !important; }}
- 
+
     [data-testid="stExpander"] {{
         background: #fff !important; border: 1px solid var(--gray-200) !important;
         border-radius: 14px !important; overflow: hidden;
@@ -288,37 +287,37 @@ def inject_global_css():
     [data-testid="stExpander"] summary p {{ color: var(--navy-900) !important; font-weight: 600; }}
     [data-testid="stExpander"] summary svg {{ fill: var(--navy-900) !important; }}
     [data-testid="stExpander"] [data-testid="stExpanderDetails"] {{ background: #fff !important; }}
- 
+
     /* Generic safety net: any stray widget label/help text left unstyled */
     [data-testid="stMarkdownContainer"] p {{ color: inherit; }}
     section.main label, section.main p, section.main span {{ color: var(--navy-900); }}
     section.main [data-testid="stCaptionContainer"] * {{ color: var(--gray-600) !important; }}
- 
+
     .app-footer {{
         margin-top: 40px; padding: 18px 4px; border-top: 1px solid var(--gray-200);
         display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
         font-size: .72rem; color: var(--gray-500);
     }}
     .app-footer .fa-solid, .app-footer .fa-brands {{ margin-right:5px; }}
- 
+
     .icon-badge {{ display:inline-flex; align-items:center; justify-content:center; width:20px; }}
     </style>
     """), unsafe_allow_html=True)
- 
- 
+
+
 def icon(cls, color=None, size=None):
     style = ""
     if color: style += f"color:{color};"
     if size: style += f"font-size:{size};"
     return f'<i class="{cls}" style="{style}"></i>'
- 
- 
+
+
 # ─────────────────────────────────────────────────────────────
 # WELCOME / LAUNCH SCREEN — clean enterprise splash (subtle fade-in only)
 # ─────────────────────────────────────────────────────────────
 if "cover_shown" not in st.session_state:
     st.session_state.cover_shown = False
- 
+
 if not st.session_state.cover_shown:
     st.markdown(_dedent(f"""
     <style>
@@ -329,7 +328,7 @@ if not st.session_state.cover_shown:
     </style>
     """), unsafe_allow_html=True)
     inject_global_css()
- 
+
     st.markdown("<div style='height:60px'></div>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
@@ -363,7 +362,7 @@ if not st.session_state.cover_shown:
             </div>
         </div>
         """), unsafe_allow_html=True)
- 
+
         st.markdown("<div style='height:22px'></div>", unsafe_allow_html=True)
         pc1, pc2, pc3 = st.columns(3)
         for idx, (c, i_cls, lbl) in enumerate([
@@ -383,21 +382,21 @@ if not st.session_state.cover_shown:
                     <div style="font-size:.72rem;color:#475569;margin-top:6px;font-weight:600;">{lbl}</div>
                 </div>
                 """), unsafe_allow_html=True)
- 
+
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
         if st.button("Enter Dashboard", use_container_width=True, type="primary", key="enter_btn"):
             st.session_state.cover_shown = True
             st.rerun()
- 
+
         st.markdown(_dedent("""
         <div style="text-align:center;margin-top:16px;font-size:.68rem;color:#94a3b8;letter-spacing:.05em;text-transform:uppercase;">
             sklearn BallTree &middot; Haversine Metric &middot; Streamlit
         </div>
         """), unsafe_allow_html=True)
     st.stop()
- 
+
 inject_global_css()
- 
+
 # ─────────────────────────────────────────────────────────────
 # SESSION STATE DEFAULTS FOR NEW FEATURES
 # ─────────────────────────────────────────────────────────────
@@ -405,7 +404,7 @@ if "search_count" not in st.session_state:
     st.session_state.search_count = 0
 if "last_query" not in st.session_state:
     st.session_state.last_query = None
- 
+
 # ─────────────────────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────
@@ -419,21 +418,14 @@ with st.sidebar:
         </div>
     </div>
     """), unsafe_allow_html=True)
- 
+
     st.markdown('<div class="sidebar-section-label">Navigation</div>', unsafe_allow_html=True)
     page = st.radio(
         "nav",
-        ["Overview", "Search", "Map", "Metadata", "Validation"],
+        ["Overview", "Search", "Map"],
         label_visibility="hidden"
     )
- 
-    st.markdown('<div class="sidebar-section-label">Dataset</div>', unsafe_allow_html=True)
-    dataset_choice = st.selectbox(
-        "dataset",
-        ["Real Dataset", "1K Records", "10K Records", "100K Records", "1M Records"],
-        label_visibility="hidden"
-    )
- 
+
     st.markdown('<div class="sidebar-section-label">System Status</div>', unsafe_allow_html=True)
     st.markdown(_dedent(f"""
     <div class="status-panel">
@@ -443,7 +435,7 @@ with st.sidebar:
         <div class="status-row"><span class="status-dot info"></span>Searches this session: {st.session_state.search_count}</div>
     </div>
     """), unsafe_allow_html=True)
- 
+
     if st.session_state.last_query:
         lq = st.session_state.last_query
         st.markdown('<div class="sidebar-section-label">Last Query</div>', unsafe_allow_html=True)
@@ -455,38 +447,29 @@ with st.sidebar:
             <div>Time: <b style="color:#fff;">{lq['ts']}</b></div>
         </div>
         """), unsafe_allow_html=True)
- 
+
     st.markdown(_dedent("""
     <div class="sidebar-footer">
         ResQ Analytics Platform &middot; v2.0<br>
         sklearn BallTree &middot; Folium &middot; Streamlit
     </div>
     """), unsafe_allow_html=True)
- 
+
 # ─────────────────────────────────────────────────────────────
 # LOAD DATA — UNCHANGED
 # ─────────────────────────────────────────────────────────────
-@st.cache_data(show_spinner="Loading dataset…")
-def load_data(choice):
-    if choice == "Real Dataset":
-        from sqlalchemy import create_engine
-        engine = create_engine(st.secrets["DATABASE_URL"])
-        return pd.read_sql("SELECT * FROM services", engine)
-    elif choice == "1K Records":
-        return pd.read_csv("million_services.csv", nrows=1000)
-    elif choice == "10K Records":
-        return pd.read_csv("million_services.csv", nrows=10000)
-    elif choice == "100K Records":
-        return pd.read_csv("million_services.csv", nrows=100000)
-    else:
-        return pd.read_csv("million_services.csv")
- 
-data = load_data(dataset_choice)
- 
+@st.cache_data(show_spinner="Loading dataset…", ttl=600)
+def load_data():
+    from sqlalchemy import create_engine
+    engine = create_engine(st.secrets["DATABASE_URL"])
+    return pd.read_sql("SELECT * FROM services", engine)
+
+data = load_data()
+
 hospital_count = len(data[data["Type"] == "Hospital"])
 police_count   = len(data[data["Type"] == "Police"])
 fire_count     = len(data[data["Type"] == "Fire"])
- 
+
 # ─────────────────────────────────────────────────────────────
 # HEADER
 # ─────────────────────────────────────────────────────────────
@@ -502,22 +485,22 @@ st.markdown(_dedent(f"""
     <div class="header-badge"><span class="dot"></span>System Operational</div>
 </div>
 """), unsafe_allow_html=True)
- 
+
 col_a, col_b, col_c, col_d = st.columns(4)
 with col_a: st.metric("Total Records", f"{len(data):,}")
 with col_b: st.metric("Hospitals", f"{hospital_count:,}")
 with col_c: st.metric("Police Stations", f"{police_count:,}")
 with col_d: st.metric("Fire Stations", f"{fire_count:,}")
- 
+
 st.divider()
- 
+
 # ═══════════════════════════════════════════════════════════
 # PAGE: OVERVIEW
 # ═══════════════════════════════════════════════════════════
 if page == "Overview":
     st.markdown(f'<div class="page-title">{icon("fa-solid fa-gauge-high", "#1d4ed8")} Overview <span class="page-title-pill">Dashboard</span></div>', unsafe_allow_html=True)
     st.info("**Welcome to ResQ** — a Ball Tree–powered spatial intelligence platform (scikit-learn) for locating the nearest Hospital, Police Station, or Fire Station from any coordinate in milliseconds, with brute-force validation built in. Use the sidebar to navigate.")
- 
+
     c1, c2, c3 = st.columns(3)
     for c, i_cls, color, tag, title, desc in [
         (c1, "fa-solid fa-hospital", "#dc2626", "Medical", "Hospitals", "Emergency medical care, ICU, trauma response"),
@@ -531,7 +514,7 @@ if page == "Overview":
                 <div class="name">{icon(i_cls, color)} &nbsp;{title}</div>
                 <div class="dist" style="color:#475569;font-weight:500;">{desc}</div>
             </div>"""), unsafe_allow_html=True)
- 
+
     st.divider()
     st.markdown("#### How It Works")
     s1, s2, s3, s4 = st.columns(4)
@@ -546,25 +529,25 @@ if page == "Overview":
                 <div class="step-num">{num}</div>
                 <div style="font-size:.95rem;font-weight:700;color:#0f172a;">{icon(i_cls, "#1d4ed8", "0.85rem")} {title}</div>
                 <div style="font-size:.78rem;color:#64748b;margin-top:4px;">{desc}</div></div>"""), unsafe_allow_html=True)
- 
+
     st.divider()
     st.markdown("#### Dataset Distribution")
     dist_df = pd.DataFrame({"Count": [hospital_count, police_count, fire_count]},
                            index=["Hospitals", "Police", "Fire"])
     st.bar_chart(dist_df)
- 
+
 # ═══════════════════════════════════════════════════════════
 # PAGE: SEARCH
 # ═══════════════════════════════════════════════════════════
 elif page == "Search":
     st.markdown(f'<div class="page-title">{icon("fa-solid fa-magnifying-glass", "#1d4ed8")} Search <span class="page-title-pill">k-NN Query</span></div>', unsafe_allow_html=True)
- 
+
     left, right = st.columns(2)
     with left:
         service_type = st.selectbox("Service Type", ["Hospital", "Police", "Fire"])
     with right:
         k = st.number_input("Results (k)", min_value=1, max_value=len(data), value=5, step=1)
- 
+
     use_gps = st.checkbox("Use Current GPS Location")
     if use_gps:
         loc = streamlit_geolocation()
@@ -590,12 +573,12 @@ elif page == "Search":
         col_lat, col_lon = st.columns(2)
         with col_lat: user_lat = st.number_input("Latitude", value=default_lat, format="%.6f")
         with col_lon: user_lon = st.number_input("Longitude", value=default_lon, format="%.6f")
- 
+
     st.caption(f"Returning top **{int(k)}** nearest `{service_type}` services for `({user_lat:.4f}, {user_lon:.4f})`")
- 
+
     if "search_clicked" not in st.session_state:
         st.session_state.search_clicked = False
- 
+
     btn_col1, btn_col2 = st.columns([3, 1])
     with btn_col1:
         if st.button("Find Nearby Services", use_container_width=True):
@@ -608,56 +591,56 @@ elif page == "Search":
                         "user_lat", "user_lon", "leaf_size"]:
                 st.session_state.pop(key, None)
             st.rerun()
- 
+
     if st.session_state.search_clicked:
         selected_type = service_type  # "Hospital" | "Police" | "Fire"
- 
+
         filtered_data = data[data["Type"] == selected_type].copy()
         if len(filtered_data) == 0:
             st.error("No records found for this service type.")
             st.stop()
- 
+
         if use_gps and "gps_lat" in st.session_state:
             user_lat = st.session_state["gps_lat"]
             user_lon = st.session_state["gps_lon"]
- 
+
         k_val      = min(int(k), len(filtered_data))
         coords     = filtered_data[["Latitude", "Longitude"]].values
         coords_rad = np.radians(coords)
         LEAF_SIZE  = 40
         EARTH_KM   = 6371.0
- 
+
         with st.spinner("Building Ball Tree index…"):
             build_start = time.time()
             tree        = BallTree(coords_rad, leaf_size=LEAF_SIZE, metric="haversine")
             build_time  = time.time() - build_start
- 
+
         with st.spinner("Querying nearest services…"):
             search_start      = time.time()
             user_rad          = np.radians([[user_lat, user_lon]])
             dist_rad, indices = tree.query(user_rad, k=k_val)
             distances_km      = dist_rad[0] * EARTH_KM
             search_time       = time.time() - search_start
- 
+
         results = filtered_data.iloc[indices[0]].copy()
         results["Distance_km"] = distances_km
- 
+
         st.session_state.update({
             "results": results, "filtered_data": filtered_data, "tree": tree,
             "coords": coords, "coords_rad": coords_rad, "build_time": build_time,
             "search_time": search_time, "selected_type": selected_type,
             "k_val": k_val, "user_lat": user_lat, "user_lon": user_lon, "leaf_size": LEAF_SIZE,
         })
- 
+
         st.session_state.search_count += 1
         st.session_state.last_query = {
             "type": selected_type, "k": k_val, "lat": user_lat, "lon": user_lon,
             "ts": datetime.datetime.now().strftime("%H:%M:%S"),
         }
- 
+
         st.success(f"Found **{len(results)}** nearest `{selected_type}` services  •  Build: `{build_time*1000:.2f} ms`  •  Query: `{search_time*1000:.3f} ms`")
         st.divider()
- 
+
         top_col, dl_col = st.columns([4, 1])
         with top_col:
             st.markdown("#### Nearest Services")
@@ -669,7 +652,7 @@ elif page == "Search":
                 file_name=f"resq_{selected_type.lower()}_results.csv",
                 mime="text/csv", use_container_width=True,
             )
- 
+
         for rank, (_, row) in enumerate(results.iterrows(), 1):
             st.markdown(_dedent(f"""<div class="result-card fade-in">
                 <div class="rank">#{rank} Nearest {selected_type}</div>
@@ -677,17 +660,17 @@ elif page == "Search":
                 <div class="dist">{icon('fa-solid fa-ruler', '#2563eb')} &nbsp;Distance: {row['Distance_km']:.3f} km</div>
                 <div class="coords">{icon('fa-solid fa-globe', '#94a3b8')} &nbsp;{row['Latitude']:.6f}, {row['Longitude']:.6f}</div>
             </div>"""), unsafe_allow_html=True)
- 
+
         st.divider()
         st.markdown("#### Full Results Table")
         st.dataframe(results[["Name","Type","Latitude","Longitude","Distance_km"]].reset_index(drop=True), use_container_width=True)
- 
+
 # ═══════════════════════════════════════════════════════════
 # PAGE: MAP
 # ═══════════════════════════════════════════════════════════
 elif page == "Map":
     st.markdown(f'<div class="page-title">{icon("fa-solid fa-map-location-dot", "#1d4ed8")} Map View <span class="page-title-pill">Spatial Visualization</span></div>', unsafe_allow_html=True)
- 
+
     if "results" not in st.session_state:
         st.info("No results yet. Go to **Search** and run a query first.")
     else:
@@ -696,15 +679,15 @@ elif page == "Map":
         user_lat      = st.session_state["user_lat"]
         user_lon      = st.session_state["user_lon"]
         k_val         = st.session_state["k_val"]
- 
+
         lc1, lc2, lc3 = st.columns(3)
         with lc1: st.info("Your Location (green marker)")
         with lc2: st.info(f"{selected_type} Stations ({k_val})")
         with lc3: st.info("Dashed lines = Ball Tree paths, with distance labels")
- 
+
         try:
             m = folium.Map(location=[user_lat, user_lon], zoom_start=13, tiles="cartodbpositron")
- 
+
             user_icon_html = """<div style="width:26px;height:26px;border-radius:50%;
                 background:linear-gradient(135deg,#059669,#10b981);
                 display:flex;align-items:center;justify-content:center;
@@ -716,245 +699,58 @@ elif page == "Map":
                 tooltip="Your Location",
                 icon=folium.DivIcon(html=user_icon_html, icon_size=(26,26), icon_anchor=(13,13))
             ).add_to(m)
- 
+
             rank_colors = ["#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd"]
- 
+
             for rank, (_, row) in enumerate(results.iterrows(), 1):
                 dist_km    = row['Distance_km']
                 dist_label = f"{dist_km:.2f} km" if dist_km >= 1 else f"{dist_km*1000:.0f} m"
                 mid_lat    = (user_lat + row["Latitude"]) / 2
                 mid_lon    = (user_lon + row["Longitude"]) / 2
                 lc         = rank_colors[min(rank-1, len(rank_colors)-1)]
- 
+
                 popup_html = f"""<div style='font-family:Inter,sans-serif;min-width:200px;'>
                   <div style='font-size:.68rem;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;'>#{rank} {selected_type}</div>
                   <div style='font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:6px;'>{row['Name']}</div>
                   <div style='font-size:.85rem;color:#2563eb;font-weight:600;'>{dist_label}</div>
                   <div style='font-size:.7rem;color:#9ca3af;margin-top:3px;'>{row['Latitude']:.5f}, {row['Longitude']:.5f}</div>
                 </div>"""
- 
+
                 svc_icon = f"""<div style="width:28px;height:28px;border-radius:50%;
                     background:{lc};
                     display:flex;align-items:center;justify-content:center;
                     font-size:12px;font-weight:700;color:white;
                     box-shadow:0 2px 6px rgba(0,0,0,.25),0 0 0 3px {lc}33;
                     font-family:Inter,sans-serif;">{rank}</div>"""
- 
+
                 folium.Marker(
                     [row["Latitude"], row["Longitude"]],
                     popup=folium.Popup(popup_html, max_width=260),
                     tooltip=f"#{rank} {row['Name']} · {dist_label}",
                     icon=folium.DivIcon(html=svc_icon, icon_size=(28,28), icon_anchor=(14,14))
                 ).add_to(m)
- 
+
                 folium.PolyLine(
                     [[user_lat, user_lon], [row["Latitude"], row["Longitude"]]],
                     color=lc, weight=2, opacity=0.75, dash_array="8 5"
                 ).add_to(m)
- 
+
                 dist_label_html = f"""<div style="background:rgba(255,255,255,.95);
                     border:1px solid {lc}55;border-radius:6px;padding:3px 9px;
                     font-family:Inter,sans-serif;font-size:11px;font-weight:600;
                     color:{lc};white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.12);">
                     #{rank} &middot; {dist_label}</div>"""
- 
+
                 folium.Marker(
                     [mid_lat, mid_lon],
                     icon=folium.DivIcon(html=dist_label_html, icon_size=(110,26), icon_anchor=(55,13))
                 ).add_to(m)
- 
+
             st_folium(m, height=580, use_container_width=True)
- 
+
         except Exception as e:
             st.error(f"Map Error: {e}")
- 
-# ═══════════════════════════════════════════════════════════
-# PAGE: METADATA
-# ═══════════════════════════════════════════════════════════
-elif page == "Metadata":
-    st.markdown(f'<div class="page-title">{icon("fa-solid fa-sitemap", "#1d4ed8")} Ball Tree Metadata <span class="page-title-pill">Index Info</span></div>', unsafe_allow_html=True)
- 
-    if "tree" not in st.session_state:
-        st.info("No Ball Tree built yet. Go to **Search** and run a query first.")
-    else:
-        tree      = st.session_state["tree"]
-        coords    = st.session_state["coords"]
-        k_val     = st.session_state["k_val"]
-        stype     = st.session_state["selected_type"]
-        bt        = st.session_state["build_time"]
-        st_t      = st.session_state["search_time"]
-        leaf_size = st.session_state.get("leaf_size", 40)
- 
-        n          = coords.shape[0]
-        n_features = coords.shape[1]
-        n_leaves   = math.ceil(n / leaf_size)
-        n_internal = max(n_leaves - 1, 0)
-        n_nodes    = n_leaves + n_internal
-        tree_height = max(math.ceil(math.log2(max(n_leaves, 1))), 1)
-        theo_height = max(math.ceil(math.log2(max(n / leaf_size, 1))), 1)
-        try:
-            avg_pts_leaf = tree.data.shape[0] / max(n_leaves, 1)
-        except Exception:
-            avg_pts_leaf = n / max(n_leaves, 1)
-        avg_pts_leaf_display = round(avg_pts_leaf)  # standardized: integer display
-        try:
-            radii = tree.node_radius
-            max_radius = float(radii.max()); min_radius = float(radii.min()); mean_radius = float(radii.mean())
-            has_radii = True
-        except AttributeError:
-            has_radii = False; max_radius = min_radius = mean_radius = 0.0
- 
-        st.divider()
-        r1c1, r1c2, r1c3 = st.columns(3)
-        for col, title, val, sub in [
-            (r1c1, "Total Nodes",    f"{n_nodes:,}",      "Leaf + internal nodes"),
-            (r1c2, "Leaf Nodes",     f"{n_leaves:,}",     "Hold actual data points"),
-            (r1c3, "Internal Nodes", f"{n_internal:,}",   "Routing / pivot nodes"),
-        ]:
-            with col:
-                st.markdown(_dedent(f"""<div class="meta-card fade-in"><div class="meta-title">{title}</div>
-                    <div class="meta-val">{val}</div><div class="meta-sub">{sub}</div></div>"""), unsafe_allow_html=True)
- 
-        r2c1, r2c2, r2c3 = st.columns(3)
-        for col, title, val, sub in [
-            (r2c1, "Tree Height",        str(tree_height),            "Actual levels in tree"),
-            (r2c2, "Avg Pts / Leaf",     f"{avg_pts_leaf_display:,}", "Points per leaf node"),
-            (r2c3, "Theoretical Height", str(theo_height),            "\u2308log\u2082(n / leaf_size)\u2309"),
-        ]:
-            with col:
-                st.markdown(_dedent(f"""<div class="meta-card fade-in"><div class="meta-title">{title}</div>
-                    <div class="meta-val">{val}</div><div class="meta-sub">{sub}</div></div>"""), unsafe_allow_html=True)
- 
-        st.divider()
-        st.markdown(f"#### {icon('fa-solid fa-gear', '#475569')} Index Configuration", unsafe_allow_html=True)
-        r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-        with r2c1: st.metric("Algorithm", "Ball Tree")
-        with r2c2: st.metric("Distance Metric", "Haversine")
-        with r2c3: st.metric("Leaf Size", leaf_size)
-        with r2c4: st.metric("Dimensions", n_features)
- 
-        st.divider()
-        st.markdown(f"#### {icon('fa-solid fa-ruler-combined', '#475569')} Dataset &amp; Query Info", unsafe_allow_html=True)
-        r3c1, r3c2, r3c3, r3c4 = st.columns(4)
-        with r3c1: st.metric("Dataset Points", f"{n:,}")
-        with r3c2: st.metric("k (query)", k_val)
-        with r3c3: st.metric("Service Type", stype)
-        with r3c4: st.metric("Index Size", f"{n_nodes:,} nodes")
- 
-        st.divider()
-        if has_radii:
-            st.markdown(f"#### {icon('fa-solid fa-circle-dot', '#475569')} Node Radius Statistics", unsafe_allow_html=True)
-            nr1, nr2, nr3 = st.columns(3)
-            with nr1: st.metric("Max Node Radius", f"{max_radius:.6f}")
-            with nr2: st.metric("Mean Node Radius", f"{mean_radius:.6f}")
-            with nr3: st.metric("Min Node Radius", f"{min_radius:.6f}")
-            st.divider()
-            st.markdown(f"#### {icon('fa-solid fa-chart-column', '#475569')} Node Radius Distribution", unsafe_allow_html=True)
-            st.bar_chart(pd.DataFrame({"Node Radius": radii}))
-            st.divider()
- 
-        st.markdown(f"#### {icon('fa-solid fa-bolt', '#475569')} Search Performance", unsafe_allow_html=True)
-        p1, p2, p3 = st.columns(3)
-        with p1: st.metric("Index Build Time", f"{bt*1000:.3f} ms")
-        with p2: st.metric("Query Time", f"{st_t*1000:.4f} ms")
-        with p3: st.metric("Total Time", f"{(bt+st_t)*1000:.3f} ms")
-        st.divider()
- 
-        st.markdown(f"#### {icon('fa-solid fa-circle-info', '#475569')} How Ball Tree Works", unsafe_allow_html=True)
-        st.info(
-            "**Ball Tree** partitions points into nested hyperspheres (balls). "
-            "Each internal node stores a pivot point and a radius; all child points lie within that sphere. "
-            "During k-NN search, entire branches are pruned when their closest possible distance "
-            "exceeds the current k-th nearest distance — making queries far faster than brute force. "
-            f"This tree indexed **{n:,}** points into **{n_nodes:,}** nodes across **{tree_height}** levels."
-        )
-        with st.expander("Comparison with Google Maps 'Nearby'"):
-            st.markdown(
-                "Google Maps 'Nearby' uses geohash grids and R-Trees on distributed infrastructure. "
-                "ResQ uses a Ball Tree — simpler, in-memory, and ideal for research and offline deployments. "
-                "For 1M points, Ball Tree query time is typically **&lt; 1 ms** vs brute-force **tens of ms**.",
-                unsafe_allow_html=True,
-            )
- 
-# ═══════════════════════════════════════════════════════════
-# PAGE: VALIDATION
-# ═══════════════════════════════════════════════════════════
-elif page == "Validation":
-    st.markdown(f'<div class="page-title">{icon("fa-solid fa-check-double", "#1d4ed8")} Validation <span class="page-title-pill">Ball Tree vs Brute Force</span></div>', unsafe_allow_html=True)
- 
-    if "results" not in st.session_state:
-        st.info("No results yet. Go to **Search** and run a query first.")
-    else:
-        results       = st.session_state["results"]
-        filtered_data = st.session_state["filtered_data"]
-        search_time   = st.session_state["search_time"]
-        build_time    = st.session_state["build_time"]
-        k_val         = st.session_state["k_val"]
-        user_lat      = st.session_state["user_lat"]
-        user_lon      = st.session_state["user_lon"]
- 
-        brute_start = time.time()
-        EARTH_KM    = 6371.0
-        lat1 = np.radians(user_lat); lon1 = np.radians(user_lon)
-        lat2 = np.radians(filtered_data["Latitude"].values)
-        lon2 = np.radians(filtered_data["Longitude"].values)
-        dlat = lat2-lat1; dlon = lon2-lon1
-        a    = np.sin(dlat/2)**2 + np.cos(lat1)*np.cos(lat2)*np.sin(dlon/2)**2
-        all_dist_km = 2*EARTH_KM*np.arcsin(np.sqrt(a))
-        brute_force = filtered_data.copy()
-        brute_force["Distance_km"] = all_dist_km
-        brute_force = brute_force.sort_values("Distance_km").head(k_val)
-        brute_time  = time.time() - brute_start
- 
-        match_count = len(set(results["Name"]) & set(brute_force["Name"]))
-        match_pct   = (match_count / k_val) * 100
-        speedup     = brute_time / max(search_time, 1e-9)
- 
-        v1, v2, v3, v4 = st.columns(4)
-        with v1: st.metric("Match Accuracy",   f"{match_pct:.1f}%")
-        with v2: st.metric("Ball Tree Query",  f"{search_time*1000:.4f} ms")
-        with v3: st.metric("Brute Force Time", f"{brute_time*1000:.4f} ms")
-        with v4: st.metric("Speedup",          f"{speedup:.1f}\u00d7")
-        st.divider()
- 
-        if match_pct == 100.0:
-            st.success(f"Perfect match — Ball Tree returned **{match_count}/{k_val}** correct results ({match_pct:.1f}%) and was **{speedup:.1f}\u00d7** faster than brute force.")
-        else:
-            st.warning(f"Partial match — Ball Tree returned **{match_count}/{k_val}** correct results ({match_pct:.1f}%). Speedup: **{speedup:.1f}\u00d7**.")
- 
-        with st.expander("Show detailed validation breakdown", expanded=False):
-            st.markdown(f"#### {icon('fa-solid fa-bolt', '#475569')} Performance Comparison", unsafe_allow_html=True)
-            perf_df = pd.DataFrame({"Time (ms)": [build_time*1000, search_time*1000, brute_time*1000]},
-                                   index=["Tree Build", "Ball Tree Query", "Brute Force"])
-            st.bar_chart(perf_df)
-            st.divider()
- 
-            st.markdown(f"#### {icon('fa-solid fa-table', '#475569')} Result Comparison", unsafe_allow_html=True)
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"**{icon('fa-solid fa-sitemap', '#1d4ed8')} Ball Tree Results**", unsafe_allow_html=True)
-                bt_display = results[["Name","Distance_km"]].reset_index(drop=True)
-                bt_display.index += 1
-                st.dataframe(bt_display, use_container_width=True)
-            with col2:
-                st.markdown(f"**{icon('fa-solid fa-list-ol', '#475569')} Brute Force Results**", unsafe_allow_html=True)
-                bf_display = brute_force[["Name","Distance_km"]].reset_index(drop=True)
-                bf_display.index += 1
-                st.dataframe(bf_display, use_container_width=True)
-            st.divider()
- 
-            matched   = set(results["Name"]) & set(brute_force["Name"])
-            unmatched = set(results["Name"]) - set(brute_force["Name"])
-            st.markdown(f"#### {icon('fa-solid fa-magnifying-glass-chart', '#475569')} Match Analysis", unsafe_allow_html=True)
-            ma1, ma2 = st.columns(2)
-            with ma1:
-                st.success("Matched (" + str(len(matched)) + "): " + (", ".join(matched) if matched else "None"))
-            with ma2:
-                if unmatched:
-                    st.warning(f"Only in Ball Tree ({len(unmatched)}): " + ", ".join(unmatched))
-                else:
-                    st.success("All Ball Tree results confirmed by brute force.")
- 
+
 # ─────────────────────────────────────────────────────────────
 # FOOTER
 # ─────────────────────────────────────────────────────────────
@@ -964,5 +760,3 @@ st.markdown(_dedent(f"""
     <div>Built with scikit-learn BallTree &middot; Folium &middot; Streamlit &nbsp;|&nbsp; Session searches: {st.session_state.search_count}</div>
 </div>
 """), unsafe_allow_html=True)
- 
-
