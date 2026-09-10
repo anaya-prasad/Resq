@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
+import os
 import time
 import io
 import datetime
@@ -461,7 +462,11 @@ with st.sidebar:
 @st.cache_data(show_spinner="Loading dataset…", ttl=600)
 def load_data():
     from sqlalchemy import create_engine
-    engine = create_engine(st.secrets["DATABASE_URL"])
+    try:
+        db_url = st.secrets["DATABASE_URL"]
+    except Exception:
+        db_url = os.environ.get("DATABASE_URL")
+    engine = create_engine(db_url)
     return pd.read_sql("SELECT * FROM services", engine)
 
 data = load_data()
